@@ -8,6 +8,8 @@ import time
 import math
 import random
 
+#define the square root of 2, as it's used a lot
+sqrt_two = math.sqrt(2)
 
 class Game:
 
@@ -26,6 +28,7 @@ class Game:
         self.gameover = False
         self.frame_period = 1./150.
         self.frame_timer = 0.
+        self.level_complete = False
 
     def on_init(self):
         pygame.init()
@@ -35,7 +38,7 @@ class Game:
     # execute function,
     def on_execute(self):
         self.camera = Camera([self.centre[0], self.centre[1]])
-        self.level = Level()
+        self.level = Level(90)
         self.level.on_execute()
         if self.on_init() == False:
             self._running = False
@@ -61,13 +64,13 @@ class Game:
             pygame.draw.circle(self._display_surf, (100,100,100), pygame.mouse.get_pos(), 15, 0)
         if (event.type == pygame.KEYDOWN) and (event.key == pygame.K_SPACE):
             if not self.gameover: theGame.level.player.jump(self.d_time)
-            else: self.restart()
+            else: self.restart(90)
         if (event.type == pygame.KEYUP) and (event.key == pygame.K_SPACE):
             theGame.level.player.holding_jump = False
         if (event.type == pygame.KEYDOWN) and (event.key == pygame.K_x):
             self.pause()
         if (event.type == pygame.KEYDOWN) and (event.key == pygame.K_r):
-            self.restart()
+            self.restart(90)
         if (event.type == pygame.KEYDOWN) and (event.key == pygame.K_f):
             pygame.display.toggle_fullscreen()
         if (event.type == pygame.KEYDOWN) and (event.key == pygame.K_s):
@@ -85,6 +88,9 @@ class Game:
         self.endgame()
         self.level.cycle_platforms()
         self.level.update(d_time)
+        if self.level_complete and self.level.player.midair_timer < time.time() - 2:
+            self.restart((self.level.player.w_pos + 180) % 360)
+            self.level_complete = False
 
     # render function, executed every loop
     def on_render(self):
@@ -127,29 +133,33 @@ class Game:
                 platform.r_vel = -300
                 platform.w_vel *= 2
 
-    def restart(self):
+    def restart(self, player_rpos):
         # set the gameover state back to False in case it was True
         self.gameover = False
         # clear out the level's Platforms and Player
         self.level.cleanup()
         del self.level
-        self.level = Level()
+        self.level = Level(player_rpos)
         self.level.on_execute()
 
+    def endLevel(self):
+        self.restart()
 
 class Level():
 
-    def __init__(self):
-        self.background_colour = (255,255,255)
-        self.grav = -2000
+    def __init__(self, player_rpos):
+        self.background_colour = (200,200,200)
+        self.platform_colour = (10,10,10)
+        self.grav = -6000
         self.start_time = time.time()
-        self.platform_array = [Platform([50, 30], 150, [5, 360])]
+        # pos, w_vel, size, colour
+        self.platform_array = [Platform([200, 30], 150, [5, 360], self.platform_colour)]
         self.thingy_array = []
         self.num_slowdowns = 0
         self.slowdown_amount = 100
-        self.speedup = 5
-        for i in range(10): self.platform_array.append(self.create_platform(self.platform_array[-1]))
-        self.player = Player([100, 90])
+        self.speedup = 10
+        self.player = Player([6000, player_rpos])
+        for i in range(15): self.platform_array.append(self.create_platform(self.platform_array[-1]))
 
     # on execute is kept separate from __init__ as some variables rely on variables not yet initialised
     def on_execute(self):
@@ -165,7 +175,7 @@ class Level():
                 #     del platform.thingy
                 #     if not theGame.gameover:theGame.level.create_thingy()
                 self.platform_array.remove(platform)
-                if not theGame.gameover: self.platform_array.append(self.create_platform(self.platform_array[-1]))
+                #if not theGame.gameover: self.platform_array.append(self.create_platform(self.platform_array[-1]))
                 # update the player's above_platform array
                 self.player.above_platform = [(x.r_pos < abs(self.player.r_pos)) for x in theGame.level.platform_array]
 
@@ -175,10 +185,13 @@ class Level():
         del self.player
 
     def create_platform(self, previous_platform):
-        # pos, w_vel, size
-        return Platform([previous_platform.r_pos + 100, random.randrange(0,360,5)],
-                        -math.copysign(random.randrange(50,150,25), previous_platform.w_vel),
-                        [5, random.randrange(20,340,10)])
+        w_vel = -math.copysign(random.randrange(50, 150, 25), previous_platform.w_vel)
+        r_pos = previous_platform.r_pos + 100
+        # pos, w_vel, size, colour
+        return Platform([r_pos, (self.player.w_pos + 180)%360 - float(w_vel)*sqrt_two*math.sqrt((abs(float(self.player.r_pos) -float(r_pos)))/float(abs(self.grav)))],
+                        w_vel,
+                        [5, random.randrange(20,340,10)],
+                        self.platform_colour)
 
     # update variables that need to be recalculated every loop
     def update(self, d_time):
@@ -199,25 +212,40 @@ class Level():
 
 class Platform():
 
-    def __init__(self, pos, w_vel, size):
+    def __init__(self, pos, w_vel, size, colour):
         self.r_size, self.w_size = size[0], size[1]
-        self.r_vel, self.w_vel = -10, w_vel
+        self.r_vel, self.w_vel = -30, w_vel
         self.r_pos, self.w_pos = pos
         self.w_vel0 = self.w_vel
-        self.colour = (255,0,0)
+        self.colour0 = colour
+        self.colour = self.colour0
         self.has_thingy = False
 
     def render(self):
-        pygame.draw.arc(theGame._display_surf,
-                        self.colour,
-                        pygame.Rect(theGame.camera.x_pos-theGame.camera.zoom*self.r_pos,
-                                    theGame.camera.y_pos-theGame.camera.zoom*self.r_pos,
-                                    theGame.camera.zoom*2*self.r_pos,
-                                    theGame.camera.zoom*2*self.r_pos),
-                        (self.w_pos - self.w_size/2)*math.pi/180.,
-                        (self.w_pos + self.w_size/2)*math.pi/180.,
-                        int(math.ceil(theGame.camera.zoom*self.r_size)))
-        self.colour = (255,0,0)
+        if int(math.ceil(theGame.camera.zoom*self.r_size)) < theGame.camera.zoom*self.r_pos:
+            # pygame.draw.arc(theGame._display_surf,
+            #             self.colour,
+            #             pygame.Rect(theGame.camera.x_pos-theGame.camera.zoom*self.r_pos,
+            #                         theGame.camera.y_pos-theGame.camera.zoom*self.r_pos,
+            #                         theGame.camera.zoom*2*self.r_pos,
+            #                         theGame.camera.zoom*2*self.r_pos),
+            #             (self.w_pos - self.w_size/2)*math.pi/180.,
+            #             (self.w_pos + self.w_size/2)*math.pi/180.,
+            #             int(math.ceil(theGame.camera.zoom*self.r_size)))
+            d_w = [(x*5 - self.w_size/2 - self.w_pos)*math.pi/180. for x in range(self.w_size/5+1)]
+            pointlist = [[theGame.camera.x_pos + theGame.camera.zoom*self.r_pos*math.cos(x),
+                          theGame.camera.y_pos + theGame.camera.zoom*self.r_pos*math.sin(x)] for x in d_w]
+            pointlist.reverse()
+            pointlist += [[theGame.camera.x_pos + theGame.camera.zoom*(self.r_pos-theGame.camera.zoom*5)*math.cos(x),
+                          theGame.camera.y_pos + theGame.camera.zoom*(self.r_pos-theGame.camera.zoom*5)*math.sin(x)] for x in d_w]
+            pygame.draw.aalines(
+                theGame._display_surf,
+                self.colour,
+                True,
+                pointlist,
+                True)
+            del d_w, pointlist
+        self.colour = self.colour0
 
     def move(self, d_time):
         # if not theGame.gameover: self.r_vel = -10*(theGame.level.player.r_pos/100.)**1.5
@@ -241,14 +269,14 @@ class Player():
         self.holding_jump = False
 
     def update_pointlist(self):
-        self.pointlist = [[theGame.camera.x_pos + theGame.camera.zoom*((self.r_pos+self.size/2.-2)*math.cos(self.w_pos*math.pi/180) + (self.size/math.sqrt(2))*math.cos(self.w_pos*math.pi/180-math.pi/4)),
-                     theGame.camera.y_pos - theGame.camera.zoom*((self.r_pos+self.size/2.-2)*math.sin(self.w_pos*math.pi/180) + (self.size/math.sqrt(2))*math.sin(self.w_pos*math.pi/180-math.pi/4))],
-                  [theGame.camera.x_pos + theGame.camera.zoom*((self.r_pos+self.size/2.-2)*math.cos(self.w_pos*math.pi/180) - (self.size/math.sqrt(2))*math.sin(self.w_pos*math.pi/180-math.pi/4)),
-                     theGame.camera.y_pos - theGame.camera.zoom*((self.r_pos+self.size/2.-2)*math.sin(self.w_pos*math.pi/180) + (self.size/math.sqrt(2))*math.cos(self.w_pos*math.pi/180-math.pi/4))],
-                  [theGame.camera.x_pos + theGame.camera.zoom*((self.r_pos+self.size/2.-2)*math.cos(self.w_pos*math.pi/180) - (self.size/math.sqrt(2))*math.cos(self.w_pos*math.pi/180-math.pi/4)),
-                     theGame.camera.y_pos - theGame.camera.zoom*((self.r_pos+self.size/2.-2)*math.sin(self.w_pos*math.pi/180) - (self.size/math.sqrt(2))*math.sin(self.w_pos*math.pi/180-math.pi/4))],
-                  [theGame.camera.x_pos + theGame.camera.zoom*((self.r_pos+self.size/2.-2)*math.cos(self.w_pos*math.pi/180) + (self.size/math.sqrt(2))*math.sin(self.w_pos*math.pi/180-math.pi/4)),
-                     theGame.camera.y_pos - theGame.camera.zoom*((self.r_pos+self.size/2.-2)*math.sin(self.w_pos*math.pi/180) - (self.size/math.sqrt(2))*math.cos(self.w_pos*math.pi/180-math.pi/4))]]
+        self.pointlist = [[theGame.camera.x_pos + theGame.camera.zoom*((self.r_pos+self.size/2.)*math.cos(self.w_pos*math.pi/180) + (self.size/sqrt_two)*math.cos(self.w_pos*math.pi/180-math.pi/4)),
+                     theGame.camera.y_pos - theGame.camera.zoom*((self.r_pos+self.size/2.)*math.sin(self.w_pos*math.pi/180) + (self.size/sqrt_two)*math.sin(self.w_pos*math.pi/180-math.pi/4))],
+                  [theGame.camera.x_pos + theGame.camera.zoom*((self.r_pos+self.size/2.)*math.cos(self.w_pos*math.pi/180) - (self.size/sqrt_two)*math.sin(self.w_pos*math.pi/180-math.pi/4)),
+                     theGame.camera.y_pos - theGame.camera.zoom*((self.r_pos+self.size/2.)*math.sin(self.w_pos*math.pi/180) + (self.size/sqrt_two)*math.cos(self.w_pos*math.pi/180-math.pi/4))],
+                  [theGame.camera.x_pos + theGame.camera.zoom*((self.r_pos+self.size/2.)*math.cos(self.w_pos*math.pi/180) - (self.size/sqrt_two)*math.cos(self.w_pos*math.pi/180-math.pi/4)),
+                     theGame.camera.y_pos - theGame.camera.zoom*((self.r_pos+self.size/2.)*math.sin(self.w_pos*math.pi/180) - (self.size/sqrt_two)*math.sin(self.w_pos*math.pi/180-math.pi/4))],
+                  [theGame.camera.x_pos + theGame.camera.zoom*((self.r_pos+self.size/2.)*math.cos(self.w_pos*math.pi/180) + (self.size/sqrt_two)*math.sin(self.w_pos*math.pi/180-math.pi/4)),
+                     theGame.camera.y_pos - theGame.camera.zoom*((self.r_pos+self.size/2.)*math.sin(self.w_pos*math.pi/180) - (self.size/sqrt_two)*math.cos(self.w_pos*math.pi/180-math.pi/4))]]
     # on execute is kept separate from __init__ as some variables rely on variables not yet initialised
 
     def on_execute(self):
@@ -316,11 +344,17 @@ class Player():
 
     def jump(self, d_time):
         if not self.midair:
-            self.r_vel = 600
-            self.r_pos -= self.r_vel*d_time
-            self.midair = True
-            self.midair_timer = time.time()
-            self.holding_jump = True
+            if self.above_platform[-1] == True:
+                self.r_vel = 8000
+                self.midair = True
+                self.midair_timer = time.time()
+                theGame.level.grav = 0
+                theGame.level_complete = True
+            else:
+                self.r_vel = 1000
+                self.midair = True
+                self.midair_timer = time.time()
+                self.holding_jump = True
 
 
 # Camera class, which determines the reference point from which everything should be rendered.
@@ -335,7 +369,8 @@ class Camera():
         self.x_pos = theGame.centre[0] - theGame.camera.zoom*(theGame.level.player.r_pos*math.cos(theGame.level.player.w_pos*math.pi/180))/3
         self.y_pos = theGame.centre[1] + theGame.camera.zoom*(theGame.level.player.r_pos*math.sin(theGame.level.player.w_pos*math.pi/180))/3
         if not theGame.gameover:
-            self.zoom = 10./math.sqrt(theGame.level.player.r_pos)
+            #max to avoid divide by zero
+            self.zoom = 10./max(0.001, math.sqrt(abs(theGame.level.player.r_pos)))
         # elif theGame.gameover: self.zoom = 3
 
 # ---------------------UI (user interface) class
