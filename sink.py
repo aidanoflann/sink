@@ -38,7 +38,7 @@ class Game:
     # execute function,
     def on_execute(self):
         self.camera = Camera([self.centre[0], self.centre[1]])
-        self.level = Level(90)
+        self.level = Level(random.randrange(0,350,10))
         self.level.on_execute()
         if self.on_init() == False:
             self._running = False
@@ -70,7 +70,7 @@ class Game:
         if (event.type == pygame.KEYDOWN) and (event.key == pygame.K_x):
             self.pause()
         if (event.type == pygame.KEYDOWN) and (event.key == pygame.K_r):
-            self.restart(90)
+            self.restart(random.randrange(0,350,10))
         if (event.type == pygame.KEYDOWN) and (event.key == pygame.K_f):
             pygame.display.toggle_fullscreen()
         if (event.type == pygame.KEYDOWN) and (event.key == pygame.K_s):
@@ -147,18 +147,18 @@ class Game:
 
 class Level():
 
-    def __init__(self, player_rpos):
-        self.background_colour = (200,200,200)
-        self.platform_colour = (10,10,10)
+    def __init__(self, player_wpos):
+        self.background_colour = (250,250,250)
+        self.platform_colour = (0,0,0)
         self.grav = -6000
         self.start_time = time.time()
         # pos, w_vel, size, colour
-        self.platform_array = [Platform([200, 30], 150, [5, 360], self.platform_colour)]
+        self.platform_array = [Platform([250, 30], 150, [5, 360], self.platform_colour)]
         self.thingy_array = []
         self.num_slowdowns = 0
         self.slowdown_amount = 100
-        self.speedup = 10
-        self.player = Player([6000, player_rpos])
+        self.speedup = 0
+        self.player = Player([9000, player_wpos])
         for i in range(15): self.platform_array.append(self.create_platform(self.platform_array[-1]))
 
     # on execute is kept separate from __init__ as some variables rely on variables not yet initialised
@@ -236,8 +236,8 @@ class Platform():
             pointlist = [[theGame.camera.x_pos + theGame.camera.zoom*self.r_pos*math.cos(x),
                           theGame.camera.y_pos + theGame.camera.zoom*self.r_pos*math.sin(x)] for x in d_w]
             pointlist.reverse()
-            pointlist += [[theGame.camera.x_pos + theGame.camera.zoom*(self.r_pos-theGame.camera.zoom*5)*math.cos(x),
-                          theGame.camera.y_pos + theGame.camera.zoom*(self.r_pos-theGame.camera.zoom*5)*math.sin(x)] for x in d_w]
+            pointlist += [[theGame.camera.x_pos + theGame.camera.zoom*(self.r_pos-theGame.camera.zoom*20)*math.cos(x),
+                          theGame.camera.y_pos + theGame.camera.zoom*(self.r_pos-theGame.camera.zoom*20)*math.sin(x)] for x in d_w]
             pygame.draw.aalines(
                 theGame._display_surf,
                 self.colour,
