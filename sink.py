@@ -38,7 +38,7 @@ class Game:
     # execute function,
     def on_execute(self):
         self.camera = Camera([self.centre[0], self.centre[1]])
-        self.level = Level(random.randrange(0,350,10))
+        self.level = Level(random.randrange(0,350,10), "core")
         self.level.on_execute()
         if self.on_init() == False:
             self._running = False
@@ -139,13 +139,15 @@ class Game:
         # clear out the level's Platforms and Player
         self.level.cleanup()
         del self.level
-        self.level = Level(player_rpos)
+        #if the game ended by the Plater finishing the level, initiate a new level of a different type
+        if self.level_complete:
+            self.level = Level(player_rpos, "red")
+        #if the game ended by the player reloading, dying etc., start the core level
+        else:
+            self.level = Level(player_rpos, "core")
         self.level.on_execute()
 
-    def endLevel(self):
-        self.restart()
-
-class Level():
+class LevelCore():
 
     def __init__(self, player_wpos):
         self.background_colour = (250,250,250)
@@ -159,7 +161,7 @@ class Level():
         self.slowdown_amount = 100
         self.speedup = 0
         self.player = Player([9000, player_wpos])
-        for i in range(15): self.platform_array.append(self.create_platform(self.platform_array[-1]))
+        for i in range(1): self.platform_array.append(self.create_platform(self.platform_array[-1]))
 
     # on execute is kept separate from __init__ as some variables rely on variables not yet initialised
     def on_execute(self):
@@ -209,6 +211,14 @@ class Level():
         self.platform_array[platform_index].has_thingy = True
         self.platform_array[platform_index].thingy = self.thingy_array[-1]
         del platform_index
+
+class Level(LevelCore):
+    def __init__(self, player_wpos, type):
+        LevelCore.__init__(self, player_wpos)
+        #based on type, make relevant changes to the level.
+        if type == "red":
+            self.background_colour = (255, 100, 100)
+            self.platform_colour = (255, 0, 0)
 
 class Platform():
 
