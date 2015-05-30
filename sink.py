@@ -95,9 +95,7 @@ class Game:
     # render function, executed every loop
     def on_render(self):
 
-        background = pygame.Rect(0, 0, self.size[0], self.size[1])
-        pygame.draw.rect(theGame._display_surf, self.level.background_colour, background, 0)
-        del background
+        self.level.draw_background()
         #for platform in theGame.level.platform_array:
         #    platform.erase()
         #self.level.player.erase()
@@ -146,17 +144,20 @@ class Game:
         del self.level
         #if the game ended by the Plater finishing the level, initiate a new level of a different type
         if self.level_complete:
-            self.level = Level(player_rpos, ["core"])
+            self.level = Level(player_rpos, ["swing"])
         #if the game ended by the player reloading, dying etc., start the core level
         else:
-            self.level = Level(player_rpos, ["core"])
+            self.level = Level(player_rpos, ["slippy"])
         self.level.on_execute()
 
 class LevelCore():
 
     def __init__(self, player_wpos):
         self.type = "core"
+        self.min_wsize = 20
         self.background_colour = (250,250,250)
+        self.spot_colour = (240, 240, 240)
+        self.generate_background()
         self.platform_colour = (0,0,0)
         self.grav = -6000
         self.start_time = time.time()
@@ -170,6 +171,18 @@ class LevelCore():
     # on execute is kept separate from __init__ as some variables rely on variables not yet initialised
     def on_execute(self):
         self.player.on_execute()
+
+    def generate_background(self):
+        self.background = pygame.Rect(0, 0, theGame.size[0], theGame.size[1])
+        self.spot_array = []
+        for i in range(100):
+            self.spot_array.append([random.randrange(1,10000, 1), random.randrange(0,360, 1), random.randrange(5,500,5)])
+
+    def draw_background(self):
+        pygame.draw.rect(theGame._display_surf, self.background_colour, self.background, 0)
+        for spot in self.spot_array:
+            pygame.draw.circle(theGame._display_surf, self.spot_colour, [int(theGame.camera.x_pos + theGame.camera.zoom*spot[0]*math.cos(spot[1])),
+                                                                         int(theGame.camera.y_pos - theGame.camera.zoom*spot[0]*math.sin(spot[1]))], int(theGame.camera.zoom*spot[2]))
 
     def cycle_platforms(self):
         # loop through the platforms, then delete/replace if any are at low enough r_pos
@@ -191,7 +204,7 @@ class LevelCore():
         # pos, w_vel, size, colour
         return Platform([r_pos, (self.player.w_pos + 180)%360 - float(w_vel)*sqrt_two*math.sqrt((abs(float(self.player.r_pos) -float(r_pos)))/float(abs(self.grav)))],
                         [self.platform_r_vel, w_vel],
-                        [5, random.randrange(20,340,10)],
+                        [5, random.randrange(self.min_wsize,340,10)],
                         self.platform_colour)
 
     # update function run every loop. To be used by different level types
@@ -208,6 +221,7 @@ class Level(LevelCore):
 
         if "heartbeat" in self.type:
             self.background_colour = (250,230,230)
+            self.spot_colour = (240, 200, 200)
             self.platform_colour = (200,0,0)
             for platform in self.platform_array:
                 platform.colour = self.platform_colour
@@ -217,10 +231,22 @@ class Level(LevelCore):
 
         if "swing" in self.type:
             self.background_colour = (230,250,230)
+            self.spot_colour = (220, 240, 220)
             self.platform_colour = (0,200,0)
             for platform in self.platform_array:
                 platform.colour = self.platform_colour
                 platform.r_pos += 100
+            self.start_time = time.time()
+            self.platform_period = 1.5
+
+        if "slippy" in self.type:
+            self.background_colour = (230,200,230)
+            self.spot_colour = (220,190,220)
+            self.platform_colour = (100,0,100)
+            for platform in self.platform_array:
+                platform.colour = self.platform_colour
+                platform.r_pos += 100
+                platform.slippery = True
             self.start_time = time.time()
             self.platform_period = 1.5
 
@@ -246,6 +272,7 @@ class Platform():
         self.w_vel0 = self.w_vel
         self.colour = colour
         self.pointlist = [[0,0],[0,0],[0,0]]
+        self.slippery = False
 
     def render(self):
         if int(math.ceil(theGame.camera.zoom*self.r_size)) < theGame.camera.zoom*self.r_pos:
@@ -291,9 +318,9 @@ class Player():
         self.colour = (0,100,255)
         self.midair = True
         self.midair_timer = 0.
-        self.holding_jump = False
+        self.holding_jump = True
         self.trail_spawn_time = time.time()
-        self.trail_period = 0.01
+        self.trail_period = 0.02
         self.update_pointlist()
         self.trail_list = [[self.x_centre, self.y_centre]]
         for x in range(70): self.trail_list.append([self.x_centre, self.y_centre])
@@ -322,6 +349,13 @@ class Player():
     def render(self):
         self.update_pointlist()
         s = 5
+        ds = 0.3
+        pygame.draw.lines(theGame._display_surf,
+                              (100,200, 255),
+                              False,
+                              [[theGame.camera.x_pos + theGame.camera.zoom*self.x_centre, theGame.camera.y_pos - theGame.camera.zoom*self.y_centre],
+                               [theGame.camera.x_pos + theGame.camera.zoom*self.trail_list[-1][0], theGame.camera.y_pos - theGame.camera.zoom*self.trail_list[-1][1]]],
+                              int(theGame.camera.zoom*(s + len(self.trail_list)*ds)))
         for i, trail_pos in enumerate(self.trail_list[:-2]):
             pygame.draw.lines(theGame._display_surf,
                               (100,200, 255),
@@ -329,8 +363,8 @@ class Player():
                               [[theGame.camera.x_pos + theGame.camera.zoom*trail_pos[0], theGame.camera.y_pos - theGame.camera.zoom*trail_pos[1]],
                                [theGame.camera.x_pos + theGame.camera.zoom*self.trail_list[i+1][0], theGame.camera.y_pos - theGame.camera.zoom*self.trail_list[i+1][1]]],
                               int(theGame.camera.zoom*s))
-            s += 0.3
-        del s
+            s += ds
+        del s, ds
         pygame.draw.polygon(theGame._display_surf, self.colour, self.pointlist, 0)
 
     def erase(self):
@@ -347,7 +381,8 @@ class Player():
                 self.r_pos += self.r_vel*d_time
             if not self.midair:
                 self.platform.colour = self.colour
-                self.w_pos += self.platform.w_vel*d_time
+                if not self.platform.slippery: self.w_pos += self.platform.w_vel*d_time
+                else: self.w_pos += self.platform.w_vel*d_time * 1.2
                 self.w_pos %= 360
                 self.r_pos += self.platform.r_vel*d_time
             # update the platform_above list. Note: this assumes the number of platforms in the list has been updated elsewhere
@@ -360,6 +395,13 @@ class Player():
                     self.above_platform = list(above_platform_new)
             else: self.above_platform = list(above_platform_new)
             del above_platform_new
+            #if the platform is slippery, check if the player has slid off the edge of it
+            if not self.midair:
+                if self.platform.slippery:
+                    if abs(((self.w_pos - self.platform.w_pos) + 180) % 360 - 180) > self.platform.w_size/2:
+                        self.midair = True
+                        self.w_pos += math.copysign(3, self.platform.w_vel)
+                        self.platform.colour = theGame.level.platform_colour
 
     #this function performs the collision if the player is in the right range of w_pos, and returns True if so
     def collision_check(self, platform):
