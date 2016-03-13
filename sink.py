@@ -8,8 +8,9 @@ import time
 import math
 import random
 
-#define the square root of 2, as it's used a lot
+# define the square root of 2, as it's used a lot
 sqrt_two = math.sqrt(2)
+
 
 class Game:
 
@@ -39,13 +40,13 @@ class Game:
     # execute function,
     def on_execute(self):
         self.camera = Camera([self.centre[0], self.centre[1]])
-        if self.on_init() == False:
+        if not self.on_init():
             self._running = False
-        self.level = Level(random.randrange(0,350,10), ["core"])
+        self.level = Level(random.randrange(0, 350, 10), ["core"])
         self.level.on_execute()
         self.ui = UI()
         # main loop, contains all events and renders
-        while( self._running ):
+        while self._running:
             for event in pygame.event.get():
                 self.on_event(event)
             self.frame_timer = time.time() - self.clock_time
@@ -96,10 +97,10 @@ class Game:
     def on_render(self):
 
         self.level.draw_background()
-        #for platform in theGame.level.platform_array:
-        #    platform.erase()
-        #self.level.player.erase()
-        #self._display_surf.fill(self.level.background_colour)
+        # for platform in theGame.level.platform_array:
+        #     platform.erase()
+        # self.level.player.erase()
+        # self._display_surf.fill(self.level.background_colour)
         self.level.player.render()
         for platform in self.level.platform_array:
             platform.render()
@@ -108,8 +109,8 @@ class Game:
                                                             int(theGame.camera.y_pos)], int(math.ceil(self.camera.zoom*self.gravsize)), 0)
         self.ui.render()
         pygame.display.flip()
-        #pygame.draw.circle(theGame._display_surf, theGame.level.background_colour, [int(theGame.camera.x_pos),
-        #                                                    int(theGame.camera.y_pos)], int(math.ceil(self.camera.zoom*self.gravsize))+2, 0)
+        # pygame.draw.circle(theGame._display_surf, theGame.level.background_colour, [int(theGame.camera.x_pos),
+        #   int(theGame.camera.y_pos)], int(math.ceil(self.camera.zoom*self.gravsize))+2, 0)
 
     # cleanup function, executed after final loop
     def on_cleanup(self):
@@ -131,7 +132,7 @@ class Game:
             self.level.player.r_pos, self.level. player.r_vel = 0,0
             self.level.player.colour = self.level.background_colour
             self.gameover = True
-            #self.camera.zoom = 1.
+            # self.camera.zoom = 1.
             for platform in self.level.platform_array:
                 platform.r_vel = -300
                 platform.w_vel *= 2
@@ -142,15 +143,16 @@ class Game:
         # clear out the level's Platforms and Player
         self.level.cleanup()
         del self.level
-        #if the game ended by the Plater finishing the level, initiate a new level of a different type
+        # if the game ended by the Player finishing the level, initiate a new level of a different type
         if self.level_complete:
             self.level = Level(player_rpos, ["swing"])
-        #if the game ended by the player reloading, dying etc., start the core level
+        # if the game ended by the player reloading, dying etc., start the core level
         else:
             self.level = Level(player_rpos, ["slippy"])
         self.level.on_execute()
 
-class LevelCore():
+
+class LevelCore:
 
     def __init__(self, player_wpos):
         self.type = "core"
@@ -166,7 +168,8 @@ class LevelCore():
         self.platform_array = [Platform([250, 30], [self.platform_r_vel, 150], [5, 360], self.platform_colour)]
         self.speedup = 0
         self.player = Player([9000, player_wpos])
-        for i in range(10): self.platform_array.append(self.create_platform(self.platform_array[-1]))
+        for i in range(10):
+            self.platform_array.append(self.create_platform(self.platform_array[-1]))
 
     # on execute is kept separate from __init__ as some variables rely on variables not yet initialised
     def on_execute(self):
@@ -189,7 +192,7 @@ class LevelCore():
         for platform in self.platform_array:
             if platform.r_pos < platform.r_size + theGame.gravsize:
                 self.platform_array.remove(platform)
-                #if not theGame.gameover: self.platform_array.append(self.create_platform(self.platform_array[-1]))
+                # if not theGame.gameover: self.platform_array.append(self.create_platform(self.platform_array[-1]))
                 # update the player's above_platform array
                 self.player.above_platform = [(x.r_pos < abs(self.player.r_pos)) for x in theGame.level.platform_array]
 
@@ -216,7 +219,7 @@ class Level(LevelCore):
 
     def __init__(self, player_wpos, type):
         LevelCore.__init__(self, player_wpos)
-        #based on type, make relevant changes to the level.
+        # based on type, make relevant changes to the level.
         self.type = type
 
         if "heartbeat" in self.type:
@@ -263,6 +266,7 @@ class Level(LevelCore):
                 if not theGame.gameover:
                     platform.w_vel = platform.w_vel0 + 10000*d_time*(cycle_time - self.platform_period/2.)
 
+
 class Platform():
 
     def __init__(self, pos, vel, size, colour):
@@ -278,10 +282,12 @@ class Platform():
         if int(math.ceil(theGame.camera.zoom*self.r_size)) < theGame.camera.zoom*self.r_pos:
             d_w = [(x*5 - self.w_size/2 - self.w_pos)*math.pi/180. for x in range(self.w_size/5+1)]
             self.pointlist = [[theGame.camera.x_pos + theGame.camera.zoom*self.r_pos*math.cos(x),
-                          theGame.camera.y_pos + theGame.camera.zoom*self.r_pos*math.sin(x)] for x in d_w]
+                               theGame.camera.y_pos + theGame.camera.zoom*self.r_pos*math.sin(x)] for x in d_w]
             self.pointlist.reverse()
-            self.pointlist += [[theGame.camera.x_pos + theGame.camera.zoom*(self.r_pos-theGame.camera.zoom*20)*math.cos(x),
-                          theGame.camera.y_pos + theGame.camera.zoom*(self.r_pos-theGame.camera.zoom*20)*math.sin(x)] for x in d_w]
+            self.pointlist += [[theGame.camera.x_pos +
+                                theGame.camera.zoom*(self.r_pos-theGame.camera.zoom*20)*math.cos(x),
+                                theGame.camera.y_pos +
+                                theGame.camera.zoom*(self.r_pos-theGame.camera.zoom*20)*math.sin(x)] for x in d_w]
             pygame.draw.polygon(
                 theGame._display_surf,
                 self.colour,
@@ -295,14 +301,14 @@ class Platform():
         pygame.draw.polygon(
             theGame._display_surf,
             theGame.level.background_colour,
-            #True,
+            # True,
             self.pointlist,
             False
         )
 
     def move(self, d_time):
         # if not theGame.gameover: self.r_vel = -10*(theGame.level.player.r_pos/100.)**1.5
-        #self.w_vel = self.w_vel0 + math.copysign(theGame.level.speedup, self.w_vel0)
+        # self.w_vel = self.w_vel0 + math.copysign(theGame.level.speedup, self.w_vel0)
         self.w_pos += self.w_vel*d_time
         self.w_pos %= 360
         self.r_pos += self.r_vel*d_time
@@ -385,17 +391,22 @@ class Player():
                 else: self.w_pos += self.platform.w_vel*d_time * 1.2
                 self.w_pos %= 360
                 self.r_pos += self.platform.r_vel*d_time
-            # update the platform_above list. Note: this assumes the number of platforms in the list has been updated elsewhere
+            # update the platform_above list. Note: this assumes the number of platforms in the list has been
+            # updated elsewhere
             above_platform_new = [(x.r_pos < abs(self.r_pos)) for x in theGame.level.platform_array]
             # if the array is different from the previous iteration, a collision may have occurred
             if not self.above_platform == above_platform_new:
                 # note: this currently assumes the Player will only ever collide with one platform at a time
                 # this will pass in the instance of the platform potentially being collided with to collision_check
-                if not self.collision_check(theGame.level.platform_array[[i for i, j in enumerate(above_platform_new) if j != self.above_platform[i]][0]]):
+                if not self.collision_check(
+                        theGame.level.platform_array[
+                            [i for i, j in enumerate(above_platform_new) if j != self.above_platform[i]][0]
+                        ]):
                     self.above_platform = list(above_platform_new)
-            else: self.above_platform = list(above_platform_new)
+            else:
+                self.above_platform = list(above_platform_new)
             del above_platform_new
-            #if the platform is slippery, check if the player has slid off the edge of it
+            # if the platform is slippery, check if the player has slid off the edge of it
             if not self.midair:
                 if self.platform.slippery:
                     if abs(((self.w_pos - self.platform.w_pos) + 180) % 360 - 180) > self.platform.w_size/2:
@@ -403,7 +414,7 @@ class Player():
                         self.w_pos += math.copysign(3, self.platform.w_vel)
                         self.platform.colour = theGame.level.platform_colour
 
-    #this function performs the collision if the player is in the right range of w_pos, and returns True if so
+    # this function performs the collision if the player is in the right range of w_pos, and returns True if so
     def collision_check(self, platform):
         # we already know that the Player has passed through the r_pos of the Platform, but need to check
         # if it is also within the range of angles of the Platform
@@ -430,16 +441,16 @@ class Player():
             self.above_platform = [(x.r_pos < abs(self.r_pos)) for x in theGame.level.platform_array]
 
     def jump(self, d_time):
-        #it has already been verified that player is NOT midair
+        # it has already been verified that player is NOT midair
         self.midair = True
         self.midair_timer = time.time()
         self.holding_jump = True
-        #if the player is on the top platform, initiate level completion
+        # if the player is on the top platform, initiate level completion
         if self.above_platform[-1] == True:
             self.r_vel = 8000
             theGame.level.grav = 0
             theGame.level_complete = True
-        #if the player is on a platform beneath the top one, perform a standard jump
+        # if the player is on a platform beneath the top one, perform a standard jump
         else:
             self.r_vel = 1000
         self.platform.colour = theGame.level.platform_colour
@@ -458,16 +469,22 @@ class Camera():
         self.x_shake, self.y_shake = 0., 0.
 
     def move(self, d_time):
-        self.x_pos = theGame.centre[0] - theGame.camera.zoom*(theGame.level.player.r_pos*math.cos(theGame.level.player.w_pos*math.pi/180))/3 + self.x_shake
-        self.y_pos = theGame.centre[1] + theGame.camera.zoom*(theGame.level.player.r_pos*math.sin(theGame.level.player.w_pos*math.pi/180))/3 + self.y_shake
+        self.x_pos = theGame.centre[0] -\
+                     theGame.camera.zoom *\
+                     (theGame.level.player.r_pos*math.cos(theGame.level.player.w_pos*math.pi/180))/3 +\
+                     self.x_shake
+        self.y_pos = theGame.centre[1] +\
+                     theGame.camera.zoom *\
+                     (theGame.level.player.r_pos*math.sin(theGame.level.player.w_pos*math.pi/180))/3 +\
+                     self.y_shake
         if self._shaking: self.shake(d_time)
         if not theGame.gameover:
-            #max to avoid divide by zero
+            # max to avoid divide by zero
             self.zoom = 10./max(0.001, math.sqrt(abs(theGame.level.player.r_pos)))
         # elif theGame.gameover: self.zoom = 3
 
     def shake(self, d_time):
-        #shake the camera with magnitude mag for dur seconds
+        # shake the camera with magnitude mag for dur seconds
         if self.shake_time < self.shake_dur:
             self.x_shake = random.random() * self.shake_mag
             self.y_shake = random.random() * self.shake_mag
@@ -477,27 +494,32 @@ class Camera():
             self.shake_time = 0
             self.x_shake, self.y_shake = 0., 0.
 
+
 # ---------------------UI (user interface) class
-class UI():
+class UI:
     def __init__(self):
         self.tech_font = pygame.font.SysFont("monospace", 15)
         self.fps_time = theGame.clock_time
         self.fps = 0
         self.fps_running = 0
+
     def redraw(self):
         pygame.draw.rect(theGame._display_surf, theGame.level.background_colour,
                          pygame.Rect(0.5*theGame.width, 0.9*theGame.height, 100,100),0)
+
     def render(self):
         self.render_fps()
         self.render_mousexy()
+
     def render_fps(self):
-        if ( (theGame.clock_time - self.fps_time) > 1 ):
+        if (theGame.clock_time - self.fps_time) > 1:
             self.fps_time = theGame.clock_time
             self.fps, self.fps_running = self.fps_running, 0
         fps = self.tech_font.render(str(self.fps)+" FPS", 1, (0,0,0))
         theGame._display_surf.blit(fps, (0.5*theGame.width, 0.9*theGame.height))
         del fps
         self.fps_running += 1
+
     def render_mousexy(self):
         pass
 
